@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>Airplane Tracker</title>
+        <style>
+            html, body, #viewDiv
+            {
+                padding: 0;
+                margin: 0;
+                height: 100%;
+                width: 100%;
+            }
+        </style>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="https://js.arcgis.com/4.19/esri/themes/light/main.css">
+    </head>
+    <script src="apiKeys.js"></script>
+    <script src="https://js.arcgis.com/4.19/"></script>
+    <script>
+
+        require([
+        "esri/config",
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/Graphic",
+        "esri/layers/GraphicsLayer"
+    ],  function(esriConfig, Map, MapView, Graphic, GraphicsLayer)
+    {
+        esriConfig.apiKey = apiKeys.esriKey;
+
+        const map = new Map({
+            basemap: "arcgis-topographic"
+        });
+
+        const view = new MapView({
+            map:map,
+            center:[-59.9738,45.7237],
+            zoom: 13,
+            container: "viewDiv"
+        });
+            
+        const graphicsLayer =  new GraphicsLayer();
+        map.add(graphicsLayer);
+
+        function today()
+        {
+            //onst windLoc = document.getElementById("viewDiv").innerHTML = window.location.search;
+
+            let callSign = window.location.search.substr(10,);
+            let date = new Date();
+            let time = Math.floor(Date.now()/1000);
+            console.log(time);
+            //const request = 'https://opensky-network.org/api/states/all?time='+time+'&icao24='+callSign
+            let newFetch = new Request('https://opensky-network.org/api/states/all?time='+time+'&icao24='+callSign);
+            fetch(newFetch)
+            .then((response) => 
+                {
+                    return response.json()
+                })
+            .then((data) =>
+                {
+                    let longitude = data["states"][0][5]
+                    let latitude = data["states"][0][6]
+                    console.log(longitude);
+                    console.log(latitude);
+                    if (data.states == null)
+                    {
+                        alert('Flight is not available')
+                    }
+                    
+            const point = 
+                {
+                    type: "point",
+                    longitude: longitude,
+                    latitude: latitude
+                };
+
+            const simpleMarkerSymbol =
+                {
+                    type: "simple-marker",
+                    color: [226,119,40],
+                    outline: {
+                        color: [255,255,255],
+                        width: 1
+                    }
+                }; 
+    
+            const pointGraphic = new Graphic({
+                    geometry: point,
+                    symbol: simpleMarkerSymbol
+                });
+            
+            graphicsLayer.add(pointGraphic);
+            
+            })
+        
+        }
+
+        setInterval(today, 30000);
+ })
+
+        
+        //callPlanes(); 
+    </script>
+    <body>
+        <div id="viewDiv"></div>
+        
+        <script>
+            //callPlanes();
+        </script>
+    </body>
+</html>
