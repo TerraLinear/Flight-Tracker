@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
     <head>
@@ -12,40 +13,84 @@
                 height: 100%;
                 width: 100%;
             }
+            .loader {
+                border: 16px solid #f3f3f3; /* Light grey */
+                border-top: 16px solid #3498db; /* Blue */
+                border-radius: 50%;
+                top: 50%;
+                left: 50%;
+                animation: spin 2s linear infinite;
+                position: fixed;
+              }
+              
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
         </style>
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="stylesheet" href="https://js.arcgis.com/4.19/esri/themes/light/main.css">
+        <script src="function.js"></script>
     </head>
     <script src="apiKeys.js"></script>
     <script src="https://js.arcgis.com/4.19/"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    
     <script>
-
+        
         require([
         "esri/config",
         "esri/Map",
         "esri/views/MapView",
         "esri/Graphic",
-        "esri/layers/GraphicsLayer"
-    ],  function(esriConfig, Map, MapView, Graphic, GraphicsLayer)
+        "esri/layers/GraphicsLayer",
+        "esri/geometry/Polygon"
+    ],  function(esriConfig, Map, MapView, Graphic, GraphicsLayer,Polygon)
     {
+        const graphicsLayer =  new GraphicsLayer();
         esriConfig.apiKey = apiKeys.esriKey;
-
+        console.log(area[0])
         const map = new Map({
             basemap: "arcgis-topographic"
         });
 
-        const view = new MapView({
-            map:map,
-            center:[-59.9738,45.7237],
-            zoom: 13,
-            container: "viewDiv"
+        const ring = area[0];
+        const polygon = {
+            type: "polygon",
+            rings: ring,
+            spatialReference: { wkid: 4326 }
+          };
+        
+        const fillSymbol = {
+            type: "simple-fill",
+            color: [227, 139, 79, 0.8],
+            outline: {
+              color: [255, 255, 255],
+              width: 1
+            }
+          };
+
+        const polygonGraphic = new Graphic({
+            geometry: polygon,
+            symbol: fillSymbol
+          });
+        
+        
+       
+        let view = new MapView({
+            map: map,
+            container: "viewDiv",
+            center: [0, 0],
+            zoom: 5
         });
-            
-        const graphicsLayer =  new GraphicsLayer();
+        graphicsLayer.add(polygonGraphic)
+        $(".loader").slideDown();
+        
+        
         map.add(graphicsLayer);
 
-        function today()
+        async function today()
         {
             //onst windLoc = document.getElementById("viewDiv").innerHTML = window.location.search;
 
@@ -54,59 +99,118 @@
             let time = Math.floor(Date.now()/1000);
             console.log(time);
             //const request = 'https://opensky-network.org/api/states/all?time='+time+'&icao24='+callSign
-            let newFetch = new Request('https://opensky-network.org/api/states/all?time='+time+'&icao24='+callSign);
-            fetch(newFetch)
-            .then((response) => 
-                {
-                    return response.json()
-                })
-            .then((data) =>
-                {
-                    let longitude = data["states"][0][5]
-                    let latitude = data["states"][0][6]
-                    console.log(longitude);
-                    console.log(latitude);
-                    if (data.states == null)
-                    {
-                        alert('Flight is not available')
-                    }
-                    
-            const point = 
-                {
-                    type: "point",
-                    longitude: longitude,
-                    latitude: latitude
-                };
-
-            const simpleMarkerSymbol =
-                {
-                    type: "simple-marker",
-                    color: [226,119,40],
-                    outline: {
-                        color: [255,255,255],
-                        width: 1
-                    }
-                }; 
-    
-            const pointGraphic = new Graphic({
-                    geometry: point,
-                    symbol: simpleMarkerSymbol
-                });
+            //newFetch = new Request('https://opensky-network.org/api/states/all?time='+time+'&icao24='+callSign);
+            const newFetch = await fetch('https://opensky-network.org/api/states/all?time='+time+'&icao24='+callSign)
+            const airplane = await newFetch.json()
             
-            graphicsLayer.add(pointGraphic);
-            
-            })
-        
+            return airplane
         }
-
-        setInterval(today, 30000);
- })
-
         
-        //callPlanes(); 
+        today().then(airplane => {
+            console.log(airplane["states"][0][6])
+            let view = new MapView({
+                map: map,
+                container: "viewDiv",
+                center: [airplane["states"][0][5], airplane["states"][0][6]],
+                zoom: 5
+            });
+        })
+
+        function plotPoint(){
+            $(".loader").hide();
+            today().then(airplane => {
+                while(airplane["states"][0][5] !== null){
+                
+                    let long = airplane["states"][0][5]
+                    let lat = airplane["states"][0][6]
+                    
+                    const point = 
+                    {
+                        type: "point",
+                        longitude: long,
+                        latitude: lat
+                    };
+                    console.log(point)
+        
+                    const simpleMarkerSymbol =
+                    {
+                        type: "simple-marker",
+                        color: [226,119,40],
+                        outline: {
+                            color: [255,255,255],
+                            width: 1
+                        }
+                    }; 
+        
+                    const pointGraphic = new Graphic({
+                        geometry: point,
+                        symbol: simpleMarkerSymbol
+                    });
+                    
+                    graphicsLayer.add(pointGraphic);
+                    //view.graphics.add(pointGraphic);
+                    console.log(airplane)
+    
+                    break;
+                }
+            })
+        }
+        
+            
+        //function LatLong()
+        //{
+        //    while (localStorage.getItem('latitude')!== null)
+        //    {
+        //        $(".loader").hide();
+        //        let long = localStorage.getItem('longitude');
+        //        let lat = localStorage.getItem('latitude');
+        //        console.log(long);
+        //        let view = new MapView({
+        //            map: map,
+        //            container: "viewDiv",
+        //            center: [long, lat],
+        //            zoom: 13
+        //        })
+        //        console.log(view);
+         //       break;
+        //    }
+        
+        //}
+        //setTimeout(today, 60000);
+        setInterval(plotPoint, 30000);
+        
+        //console.log(today())
+        
+        //function centerMap()
+        //{
+            
+
+        //    const centerLat= [];
+        //    const centerLong = [];
+
+        //    centerLat.push(y);
+        //    centerLong.push(x);
+        //    cycleLat = centerLat[centerLat.length - 1];
+        //    cycleLong = centerLong[centerLong.length - 1];
+        //}
+        
+        //function update(cycleLat, cycleLong)
+        //{
+        //    if (cycleLat != undefined && cycleLong != undefined)
+        //    {
+        //        
+    
+        //    }
+        //}
+        
+        
+        
+        
+ })
     </script>
     <body>
         <div id="viewDiv"></div>
+        <div class="loader"></div>
         
         <script>
             //callPlanes();
